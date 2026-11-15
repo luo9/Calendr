@@ -1,74 +1,38 @@
-# Calendr
+# Calendr（极简版）
 
-[![install](https://img.shields.io/badge/How_to_install-gray?label=📥)](https://github.com/pakerwreah/Calendr/issues/217)
-[![homebrew](https://img.shields.io/badge/Homebrew_cask-gray?logo=homebrew&logoColor=ffdd00)](https://github.com/pakerwreah/homebrew-calendr)
-[![release](https://img.shields.io/github/v/release/pakerwreah/Calendr?label=Latest%20release)](https://github.com/pakerwreah/Calendr/releases/latest)
-[![downloads-latest](https://img.shields.io/github/downloads/pakerwreah/Calendr/latest/Calendr.zip?displayAssetName=false&logo=github&label=Downloads)](https://github.com/pakerwreah/Calendr/releases/latest)
-[![downloads-all](https://img.shields.io/github/downloads/pakerwreah/Calendr/Calendr.zip?displayAssetName=false&logo=github&label=All%20downloads)](https://github.com/pakerwreah/Calendr/releases/latest)
+菜单栏显示时间，点击弹出月历，两者都支持自定义时区。无事件/待办、无自动更新、无第三方依赖。
 
-[![ci-github](https://github.com/pakerwreah/Calendr/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/pakerwreah/Calendr/actions)
-[![ci-bitrise](https://img.shields.io/bitrise/9fa2e96dc9458fbb?label=Bitrise&logo=bitrise&token=iAJgn0FMJzmMP4ALCi0KdQ)](https://app.bitrise.io/app/9fa2e96dc9458fbb)
-[![sentry](https://img.shields.io/badge/Sentry-purple?logo=sentry&logoColor=white)](https://github.com/pakerwreah/Calendr/issues)
-[![linkedin](https://img.shields.io/badge/LinkedIn-blue?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/carlosenumo)
-[![buy-me-a-coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/pakerwreah)
-[![reddit](https://img.shields.io/badge/Follow%20r%2FCalendr--black?style=social&logo=reddit)](https://www.reddit.com/r/Calendr)
+## 使用
 
-## Menu bar calendar for macOS
+```bash
+scripts/build-app.sh                       # 生成 build/Calendr.app
+cp -R build/Calendr.app /Applications/
+open /Applications/Calendr.app
+```
 
-<table>
-<tr>
-  <td>
-    <img width=350 src="resources/screenshot.png" title="Calendr" />
-    <img valign='top' width=170 src='https://github.com/pakerwreah/Calendr/assets/803954/8b3ebb0f-52ad-461c-91c3-7b4d2646712e' />
-    <img valign='top' width=150 src='https://github.com/pakerwreah/Calendr/assets/803954/8e8d342d-9be5-4bad-b741-875cc407ec1a' />
-  </td>
-</tr>
-</table>
+- 左键：月历（上/下月、回到今天、点选日期）
+- 右键：设置、退出
+- 设置：时区、菜单栏格式、每周起始日、周数、周末高亮、开机启动
 
-Hey 🙋🏻‍♂️ if you like my app, please consider buying me a coffee to keep me motivated.<br>
-<sub>(and maybe update the screenshot once in a while)</sub>
+开发：`swift build` / `swift test`。
 
-## Natural-language event entry
+## 结构
 
-Create events faster by typing the title together with optional date, time, duration, all-day, and calendar instructions. Calendr highlights recognized instructions while you type, immediately updates the event fields, and removes the instructions from the saved event title.
+```mermaid
+flowchart LR
+    S[Settings<br/>UserDefaults] -->|calendar 含时区/周起始日| SI[StatusItemController<br/>菜单栏文字，每秒刷新]
+    S -->|calendar| PV[CalendarPopoverView<br/>MonthGrid 6x7]
+    S --> SV[SettingsView]
+    SI -->|左键| PV
+    SI -->|右键菜单| SV
+```
 
-For example:
+## 时区
 
-`Pickleball with Tom next Friday from 10 to 12 /sport`
+`Settings.calendar` 是唯一入口：系统 `Calendar.autoupdatingCurrent` 加上自定义时区和周起始日。
+所有格式化、"今天"判断、月历网格都用它，所以不需要处理事件的浮动时间问题，也不需要午夜通知：
+弹窗和菜单栏每秒按所选时区重新计算，跨天自动更新。
 
-- Dates: `today`, `tomorrow`, `yesterday`, `in a week`, `in 3 days`, `on Friday`, `at Friday`, `next Friday`, or `August 12`
-- Times: `at 14`, `at 2pm`, `at noon`, `tomorrow morning`, `from 10 to 12`, or `at 22 until 1`
-- Relative starts and durations: `in 2 hours`, `for 30 minutes`, `for 2 hours`, or `for 4 days`
-- All-day events: `all day` or `full day`
-- Calendars: add `/` followed by part of a calendar name, such as `/sport`, to fuzzy-match and select it
+## 后续可加
 
-English and Czech instructions are supported. The parser follows Calendr's preferred localization automatically. Unsupported localizations can still opt in to the English parser.
-
-The feature can be enabled or disabled in Settings and defaults to enabled for English and Czech localizations. Numeric dates follow the date order configured by the active locale, and the first word is always preserved as event title text.
-
-<table>
-<tr>
-  <td>
-    <img width="500" src="resources/smart-event-entry.png" alt="Natural-language event entry with highlighted date, time, and calendar instructions" />
-  </td>
-</tr>
-</table>
-
-## Hidden features 🔍
-
-### Display multiple timezones in the menu bar
-- Format
-`HH:mm | HH:mm@GMT+2 'LT' | HH:mm@GMT-3 'BR'`
-- Result
-`15:00 | 17:00 LT | 12:00 BR`
-
-### Open date with a URL scheme https://github.com/pakerwreah/Calendr/issues/314
-date|encoded
---|--
-`december`|`calendr://date/december` (defaults to current date and year)
-`feb 10 2025`|`calendr://date/feb%2010%202025`
-`2nd of September 2025`|`calendr://date/2nd%20of%20September%202025`
-
-It has limited support to relative dates like: `today`, `yesterday`, `tomorrow` but will not work with `next week`, `last month`, etc.
-
-That's how `NSDataDetector` works ¯\\_\(ツ\)\_/¯
+农历、多时区同时显示、全局快捷键、事件（EventKit）。

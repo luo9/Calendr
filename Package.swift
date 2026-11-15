@@ -1,63 +1,22 @@
-// swift-tools-version: 6.3
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
     name: "Calendr",
-    defaultLocalization: "en",
     platforms: [
-        .macOS(.v15)
-    ],
-    dependencies: [
-        .package(url: "https://github.com/ReactiveX/RxSwift", from: "6.10.2"),
-        .package(url: "https://github.com/apple/swift-collections", from: "1.6.0"),
-        .package(url: "https://github.com/pointfreeco/swift-clocks", from: "1.1.1"),
-        .package(url: "https://github.com/getsentry/sentry-cocoa", from: "9.28.0"),
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "3.1.0"),
-        .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20")
+        .macOS(.v14)
     ],
     targets: [
-        .target(
-            name: "CalendrObjC",
-            path: "Calendr/ObjC",
-            publicHeadersPath: "."
-        ),
         .executableTarget(
             name: "Calendr",
-            dependencies: [
-                "CalendrObjC",
-                .product(name: "RxSwift", package: "RxSwift"),
-                .product(name: "RxCocoa", package: "RxSwift"),
-                .product(name: "Collections", package: "swift-collections"),
-                .product(name: "Sentry", package: "sentry-cocoa"),
-                .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
-                .product(name: "ZIPFoundation", package: "ZIPFoundation")
-            ],
-            path: "Calendr",
-            exclude: [
-                "Config",
-                "Tools",
-                "ObjC",
-                "AGENTS.md",
-                "CLAUDE.md",
-            ],
-            resources: [
-                .process("Assets")
-            ]
+            path: "Sources/Calendr",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
             name: "CalendrTests",
-            dependencies: [
-                "Calendr",
-                .product(name: "Clocks", package: "swift-clocks")
-            ],
-            path: "CalendrTests",
-            exclude: [
-                "Info.plist",
-                "UnitTests.xctestplan",
-                "AGENTS.md",
-                "CLAUDE.md",
-            ]
+            dependencies: ["Calendr"],
+            path: "Tests/CalendrTests",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         )
-    ],
-    swiftLanguageModes: [.v5]
+    ]
 )
