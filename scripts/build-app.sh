@@ -9,9 +9,10 @@ bin="$(swift build -c release --show-bin-path)"
 app="build/Calendr.app"
 
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/Calendr" "$app/Contents/MacOS/Calendr"
 cp Resources/Info.plist "$app/Contents/Info.plist"
+cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$app"
 
 echo "✅ $app"
