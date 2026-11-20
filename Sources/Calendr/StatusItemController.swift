@@ -4,15 +4,26 @@ import SwiftUI
 
 /// 菜单栏图标：显示按所选时区格式化的时间；左键弹出月历，右键弹出菜单。
 @MainActor
-final class StatusItemController: NSObject {
+final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
+    private let formatter = DateFormatter()
     private let settings: Settings
     private let openSettings: () -> Void
 
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
+
+    private lazy var contextMenu: NSMenu = {
+        let menu = NSMenu()
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettingsAction), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit Calendr", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        return menu
+    }()
 
     init(settings: Settings, openSettings: @escaping () -> Void) {
         self.settings = settings
@@ -20,6 +31,7 @@ final class StatusItemController: NSObject {
         super.init()
 
         popover.behavior = .transient
+        popover.delegate = self
 
         if let button = statusItem.button {
             button.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
@@ -28,34 +40,63 @@ final class StatusItemController: NSObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        // objectWillChange 在值变化之前触发，所以下一轮 runloop 再刷新
-        settings.objectWillChange
-            .sink { [weak self] _ in DispatchQueue.main.async { self?.refresh() } }
-            .store(in: &cancellables)
+        // @Published 在 willSet 触发，receive(on: DispatchQueue.main) 确保在值更新后再重载
+        Publishers.Merge3(
+            settings.$timeZoneID.dropFirst().map { _ in () },
+            settings.$dateFormat.dropFirst().map { _ in () },
+            settings.$firstWeekday.dropFirst().map { _ in () }
+        )
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] in self?.reload() }
+        .store(in: &cancellables)
 
-        for name in [NSLocale.currentLocaleDidChangeNotification, .NSSystemTimeZoneDidChange] {
+        for name in [NSLocale.currentLocaleDidChangeNotification, .NSSystemTimeZoneDidChange, .NSSystemClockDidChange] {
             NotificationCenter.default.publisher(for: name)
-                .sink { [weak self] _ in DispatchQueue.main.async { self?.refresh() } }
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in self?.reload() }
                 .store(in: &cancellables)
         }
 
-        startTimer()
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.reload() }
+            .store(in: &cancellables)
+
+        reload()
+    }
+
+    deinit {
+        timer?.invalidate()
+    }
+
+    private func reload() {
+        let calendar = settings.calendar
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = calendar.locale ?? .current
+        formatter.dateFormat = settings.dateFormat
+
+        scheduleTimer()
         refresh()
     }
 
-    private func startTimer() {
-        // 对齐到整秒，之后每秒刷新一次（格式里没有秒时标题不变，不会重绘）
-        let nextSecond = Date(timeIntervalSinceReferenceDate: ceil(Date.timeIntervalSinceReferenceDate))
-        let timer = Timer(fire: nextSecond, interval: 1, repeats: true) { [weak self] _ in
+    private func scheduleTimer() {
+        timer?.invalidate()
+
+        let needsSeconds = formatNeedsSecondPrecision(settings.dateFormat)
+        let interval: TimeInterval = needsSeconds ? 1 : 60
+        let fireDate = nextTickDate(after: Date(), interval: interval)
+
+        let timer = Timer(fire: fireDate, interval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
-        timer.tolerance = 0.05
+        timer.tolerance = needsSeconds ? 0.05 : 0.5
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
 
     private func refresh() {
-        let text = formatDate(Date(), pattern: settings.dateFormat, calendar: settings.calendar)
+        let text = formatter.string(from: Date())
         let title = text.isEmpty ? "📅" : text
         if statusItem.button?.title != title {
             statusItem.button?.title = title
@@ -89,18 +130,15 @@ final class StatusItemController: NSObject {
         controller.view.window?.makeKey()
     }
 
+    func popoverDidClose(_ notification: Notification) {
+        popover.contentViewController = nil
+    }
+
     private func showMenu() {
         popover.performClose(nil)
 
-        let menu = NSMenu()
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettingsAction), keyEquivalent: ",")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Calendr", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-
         // 临时挂上菜单再点击，菜单弹出后立即摘掉，这样左键仍然走 action
-        statusItem.menu = menu
+        statusItem.menu = contextMenu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
     }

@@ -61,6 +61,37 @@ private let instant = Date(timeIntervalSince1970: 1_794_686_400)
         #expect(TimeZoneOptions.gmtLabel(seconds: -(9 * 3600 + 1800)) == "GMT-9:30")
         #expect(TimeZoneOptions.gmtLabel(seconds: 0) == "GMT+0")
     }
+
+    @Test func secondPrecisionDetection() {
+        #expect(!formatNeedsSecondPrecision("M/d EEE HH:mm"))
+        #expect(!formatNeedsSecondPrecision("HH:mm"))
+        #expect(!formatNeedsSecondPrecision("yyyy-MM-dd"))
+        #expect(!formatNeedsSecondPrecision("HH:mm 'sec'"))
+        #expect(!formatNeedsSecondPrecision("'s''S' HH:mm"))
+        #expect(formatNeedsSecondPrecision("HH:mm:ss"))
+        #expect(formatNeedsSecondPrecision("HH:mm:s.SSS"))
+        #expect(formatNeedsSecondPrecision("HH:mm '' s"))
+        #expect(formatNeedsSecondPrecision("A"))
+    }
+
+    @Test func nextTickDateAlignsStrictlyForward() {
+        #expect(
+            nextTickDate(after: Date(timeIntervalSinceReferenceDate: 100.0), interval: 1)
+                == Date(timeIntervalSinceReferenceDate: 101.0)
+        )
+        #expect(
+            nextTickDate(after: Date(timeIntervalSinceReferenceDate: 100.3), interval: 1)
+                == Date(timeIntervalSinceReferenceDate: 101.0)
+        )
+        #expect(
+            nextTickDate(after: Date(timeIntervalSinceReferenceDate: 120.0), interval: 60)
+                == Date(timeIntervalSinceReferenceDate: 180.0)
+        )
+        #expect(
+            nextTickDate(after: Date(timeIntervalSinceReferenceDate: 125.4), interval: 60)
+                == Date(timeIntervalSinceReferenceDate: 180.0)
+        )
+    }
 }
 
 @Suite struct SettingsTests {

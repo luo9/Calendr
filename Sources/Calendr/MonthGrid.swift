@@ -75,7 +75,7 @@ extension Calendar {
     }
 }
 
-/// 按自定义格式串渲染日期（菜单栏文字用）。
+/// 按自定义格式串渲染日期（设置预览和月历底部用）。
 func formatDate(_ date: Date, pattern: String, calendar: Calendar) -> String {
     let formatter = DateFormatter()
     formatter.calendar = calendar
@@ -83,6 +83,26 @@ func formatDate(_ date: Date, pattern: String, calendar: Calendar) -> String {
     formatter.locale = calendar.locale ?? .current
     formatter.dateFormat = pattern
     return formatter.string(from: date)
+}
+
+/// 判断 DateFormatter 格式串是否包含秒级占位符（忽略单引号包裹的字面量）。
+func formatNeedsSecondPrecision(_ pattern: String) -> Bool {
+    var inQuotes = false
+    for ch in pattern {
+        if ch == "'" {
+            inQuotes.toggle()
+        } else if !inQuotes, ch == "s" || ch == "S" || ch == "A" {
+            return true
+        }
+    }
+    return false
+}
+
+/// 计算给定时刻之后的下一个整秒或整分对齐时间点。
+func nextTickDate(after now: Date, interval: TimeInterval) -> Date {
+    let seconds = now.timeIntervalSinceReferenceDate
+    let next = (floor(seconds / interval) + 1) * interval
+    return Date(timeIntervalSinceReferenceDate: next)
 }
 
 enum TimeZoneOptions {

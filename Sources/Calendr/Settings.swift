@@ -6,6 +6,7 @@ final class Settings: ObservableObject {
 
     static let shared = Settings()
     static let defaultDateFormat = "M/d EEE HH:mm"
+    private static let fixedLocale = Locale(identifier: "en_US")
 
     private enum Key {
         static let timeZone = "time_zone"
@@ -54,7 +55,7 @@ final class Settings: ObservableObject {
         let system = Calendar.autoupdatingCurrent
         var calendar = system
         // 界面固定英文：月份/星期名用英文，但周起始日、每年第一周规则仍沿用系统区域设置
-        calendar.locale = Locale(identifier: "en_US")
+        calendar.locale = Self.fixedLocale
         calendar.firstWeekday = system.firstWeekday
         calendar.minimumDaysInFirstWeek = system.minimumDaysInFirstWeek
         if !timeZoneID.isEmpty, let timeZone = TimeZone(identifier: timeZoneID) {
