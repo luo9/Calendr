@@ -34,7 +34,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.delegate = self
 
         if let button = statusItem.button {
-            button.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+            button.font = .monospacedDigitSystemFont(ofSize: 13.5, weight: .regular)
             button.target = self
             button.action = #selector(handleClick)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
